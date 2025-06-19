@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学员名单展示</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#165DFF',
+                        secondary: '#36BFFA',
+                        accent: '#7B61FF',
+                        dark: '#1D2939',
+                        light: '#F9FAFB'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .text-shadow-lg {
+                text-shadow: 0 4px 8px rgba(0,0,0,0.12), 0 2px 4px rgba(0,0,0,0.08);
+            }
+            .bg-gradient-display {
+                background: linear-gradient(120deg, #165DFF 0%, #7B61FF 100%);
+            }
+            .animate-float {
+                animation: float 3s ease-in-out infinite;
+            }
+            .animate-fadeIn {
+                animation: fadeIn 0.5s ease-out forwards;
+            }
+            .animate-slideUp {
+                animation: slideUp 0.7s ease-out forwards;
+            }
+            @keyframes float {
+                0% { transform: translateY(0px); }
+                50% { transform: translateY(-10px); }
+                100% { transform: translateY(0px); }
+            }
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+            @keyframes slideUp {
+                from { transform: translateY(20px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+            }
+        }
+    </style>
+</head>
+<body class="font-inter bg-gray-900 text-white min-h-screen flex flex-col">
+    <!-- 导航栏 -->
+    <nav class="bg-dark/80 backdrop-blur-sm shadow-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 flex items-center">
+                        <i class="fa fa-users text-primary text-2xl mr-2"></i>
+                        <span class="font-bold text-xl">学员名单展示</span>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <a href="index.html" class="text-primary hover:text-primary/80 px-3 py-2 rounded-md text-sm font-medium transition-custom">
+                        <i class="fa fa-arrow-left mr-1"></i> 返回发送页面
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主内容区 -->
+    <main class="flex-grow flex items-center justify-center p-4 sm:p-6 lg:p-8">
+        <div class="w-full max-w-5xl">
+            <!-- 显示区域 -->
+            <div id="displayArea" class="bg-gradient-display rounded-3xl shadow-2xl overflow-hidden transition-all duration-500 hover:shadow-primary/20">
+                <div class="p-6 sm:p-10">
+                    <!-- 标题 -->
+                    <div class="text-center mb-10">
+                        <h1 class="text-[clamp(1.8rem,4vw,3rem)] font-bold text-white text-shadow-lg mb-2">今日吃小灶的学员名单</h1>
+                        <div class="w-32 h-1 bg-white/30 mx-auto rounded-full"></div>
+                    </div>
+                    
+                    <!-- 名单容器 -->
+                    <div id="nameListContainer" class="space-y-4 max-w-3xl mx-auto">
+                        <!-- 默认状态 -->
+                        <div id="emptyState" class="py-16 text-center">
+                            <div class="inline-flex items-center justify-center p-4 rounded-full bg-white/10 mb-6 animate-float">
+                                <i class="fa fa-user-circle-o text-5xl text-white/90"></i>
+                            </div>
+                            <h2 class="text-2xl font-bold text-white text-shadow-lg mb-4">暂无名单</h2>
+                            <p class="text-blue-100">请在发送页面输入姓名并提交</p>
+                        </div>
+                        
+                        <!-- 名单列表 (默认隐藏) -->
+                        <ul id="nameList" class="hidden divide-y divide-white/10"></ul>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 控制按钮 -->
+            <div class="mt-8 flex justify-center space-x-4">
+                <button id="refreshBtn" class="px-4 py-2 bg-dark hover:bg-dark/80 text-white rounded-lg shadow transition-custom flex items-center">
+                    <i class="fa fa-refresh mr-2"></i>
+                    刷新名单
+                </button>
+                <button id="clearAllBtn" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg shadow transition-custom flex items-center">
+                    <i class="fa fa-trash mr-2"></i>
+                    清空名单
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-dark/50 backdrop-blur-sm py-4">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-gray-400 text-sm">
+            <p>按刷新按钮更新名单 | <span id="lastUpdated">最后更新: 从未</span></p>
+        </div>
+    </footer>
+
+    <script>
+        // DOM元素
+        const emptyState = document.getElementById('emptyState');
+        const nameList = document.getElementById('nameList');
+        const lastUpdated = document.getElementById('lastUpdated');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const clearAllBtn = document.getElementById('clearAllBtn');
+        
+        // 初始化
+        updateNameList();
+        
+        // 定时刷新名单
+        setInterval(updateNameList, 5000);
+        
+        // 刷新按钮事件
+        refreshBtn.addEventListener('click', function() {
+            this.classList.add('animate-pulse');
+            updateNameList();
+            setTimeout(() => {
+                this.classList.remove('animate-pulse');
+            }, 500);
+        });
+        
+        // 清空按钮事件
+        clearAllBtn.addEventListener('click', function() {
+            if (confirm('确定要清空所有名单吗？')) {
+                localStorage.removeItem('nameListData');
+                updateNameList();
+            }
+        });
+        
+        // 更新名单
+        function updateNameList() {
+            const nameListData = JSON.parse(localStorage.getItem('nameListData') || '[]');
+            
+            if (nameListData.length > 0) {
+                // 显示名单
+                emptyState.classList.add('hidden');
+                nameList.classList.remove('hidden');
+                
+                // 清空现有名单
+                nameList.innerHTML = '';
+                
+                // 添加每个名字到列表
+                nameListData.forEach((entry, index) => {
+                    const listItem = createNameListItem(entry, index);
+                    nameList.appendChild(listItem);
+                });
+                
+                // 更新最后更新时间
+                lastUpdated.textContent = `最后更新: ${formatDateTime(new Date())}`;
+            } else {
+                // 显示空状态
+                emptyState.classList.remove('hidden');
+                nameList.classList.add('hidden');
+                
+                // 更新最后更新时间
+                lastUpdated.textContent = `最后更新: 已清空`;
+            }
+        }
+        
+        // 创建名单项
+        function createNameListItem(entry, index) {
+            const listItem = document.createElement('li');
+            listItem.className = 'py-4 flex justify-between items-center animate-fadeIn';
+            listItem.style.animationDelay = `${index * 0.1}s`;
+            
+            // 左侧内容（姓名和留言）
+            const leftContent = document.createElement('div');
+            leftContent.className = 'flex-1 min-w-0';
+            
+            // 姓名
+            const nameElement = document.createElement('h3');
+            nameElement.className = 'text-xl font-semibold text-white truncate';
+            nameElement.textContent = entry.name;
+            
+            // 留言（如果有）
+            const messageElement = document.createElement('p');
+            if (entry.message) {
+                messageElement.className = 'mt-1 text-blue-100 text-sm';
+                messageElement.textContent = entry.message;
+            } else {
+                messageElement.className = 'hidden';
+            }
+            
+            // 添加到左侧内容
+            leftContent.appendChild(nameElement);
+            leftContent.appendChild(messageElement);
+            
+            // 右侧内容（时间和删除按钮）
+            const rightContent = document.createElement('div');
+            rightContent.className = 'ml-4 flex items-center space-x-3';
+            
+            // 时间
+            const timeElement = document.createElement('span');
+            timeElement.className = 'text-white/60 text-sm';
+            timeElement.textContent = formatTime(new Date(entry.timestamp));
+            
+            // 删除按钮
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'text-white/60 hover:text-white transition-colors';
+            deleteBtn.innerHTML = '<i class="fa fa-times-circle"></i>';
+            deleteBtn.addEventListener('click', function() {
+                removeEntry(index);
+            });
+            
+            // 添加到右侧内容
+            rightContent.appendChild(timeElement);
+            rightContent.appendChild(deleteBtn);
+            
+            // 添加左右内容到列表项
+            listItem.appendChild(leftContent);
+            listItem.appendChild(rightContent);
+            
+            return listItem;
+        }
+        
+        // 移除单个条目
+        function removeEntry(index) {
+            const nameListData = JSON.parse(localStorage.getItem('nameListData') || '[]');
+            if (index >= 0 && index < nameListData.length) {
+                nameListData.splice(index, 1);
+                localStorage.setItem('nameListData', JSON.stringify(nameListData));
+                updateNameList();
+            }
+        }
+        
+        // 格式化时间为友好显示
+        function formatTime(date) {
+            const now = new Date();
+            const diff = now - date;
+            
+            // 不到1分钟
+            if (diff < 60000) {
+                return '刚刚';
+            }
+            
+            // 不到1小时
+            if (diff < 3600000) {
+                return Math.floor(diff / 60000) + '分钟前';
+            }
+            
+            // 不到1天
+            if (diff < 86400000) {
+                return Math.floor(diff / 3600000) + '小时前';
+            }
+            
+            // 超过1天
+            return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+        }
+        
+        // 格式化日期时间
+        function formatDateTime(date) {
+            return date.toLocaleTimeString('zh-CN', { 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit' 
+            });
+        }
+    </script>
+</body>
+</html>
+    
